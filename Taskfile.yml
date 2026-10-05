@@ -1,0 +1,51 @@
+version: '3'
+
+env:
+  CARGO_TARGET_DIR:
+    sh: echo "${CARGO_TARGET_DIR:-$HOME/.cache/b10x-target/examples}"
+  CARGO_INCREMENTAL: '0'
+
+vars:
+  TRIAGE_ESS: zendesk-triage/ess
+
+tasks:
+  default:
+    cmds: [{task: check}]
+
+  check:
+    desc: Format, lint, test, ESS, the conformance suite and the pin check.
+    cmds:
+      - cargo fmt --all --check
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
+      - cargo test --workspace --locked
+      - task: ess
+      - task: conform
+      - task: pins
+
+  ess:
+    desc: Validate the zendesk-triage ESS specification.
+    cmds:
+      - ess specify validate --path {{.TRIAGE_ESS}}
+
+  conform:
+    desc: Compile the authored ESS scenarios, run them against the triage on the fixture Zendesk, and write the report.
+    vars:
+      OUT:
+        sh: echo "$CARGO_TARGET_DIR/zendesk-triage-ess"
+    cmds:
+      - mkdir -p {{.OUT}}
+      - ess verify conform author --path {{.TRIAGE_ESS}} --scenarios {{.TRIAGE_ESS}} --out {{.OUT}}/suite.json
+      - cargo run --quiet --locked -p zendesk-triage -- conform --suite {{.OUT}}/suite.json --results {{.OUT}}/results.json
+      - ess verify conform report --suite {{.OUT}}/suite.json --results {{.OUT}}/results.json --implementation zendesk-triage --runner zendesk-triage@0.0.0 --report-out {{.OUT}}/report.json
+
+  pins:
+    desc: Check the vendored support.triage/1 against ELS and the vendored Connectors files against v0.26.0.
+    cmds:
+      - cargo run --quiet --locked -p zendesk-triage -- pins --manifest-path Cargo.toml
+      - cargo run --quiet --locked -p zendesk-triage -- bindings
+
+  demo:
+    desc: Triage every fixture ticket and one unknown id with routing approved, then the first ticket without the approval.
+    cmds:
+      - cargo run --quiet --locked -p zendesk-triage -- triage 1001 1002 1003 1004 9999 --approve ticket.route
+      - cargo run --quiet --locked -p zendesk-triage -- triage 1001

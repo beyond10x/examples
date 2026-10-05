@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = ["zendesk-triage", "vendor/els"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/beyond10x/examples"
+publish = false
+
+[patch."https://github.com/beyond10x/els"]
+b10x-els = { path = "vendor/els" }
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false

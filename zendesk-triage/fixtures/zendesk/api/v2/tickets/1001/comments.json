@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "id": 10011,
+      "type": "Comment",
+      "author_id": 601,
+      "public": true,
+      "body": "My card was charged twice for the October invoice. Please refund the duplicate charge.",
+      "created_at": "2026-10-05T09:40:00Z"
+    }
+  ],
+  "meta": {
+    "has_more": false,
+    "after_cursor": null,
+    "before_cursor": null
+  },
+  "links": {
+    "next": null,
+    "prev": null
+  }
+}
