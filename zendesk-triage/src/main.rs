@@ -65,6 +65,12 @@ struct TriageArgs {
     /// The `connectors` executable.
     #[arg(long, value_name = "PATH", default_value = "connectors")]
     connectors_bin: PathBuf,
+    /// The `connectors` configuration file, when not its default.
+    #[arg(long, value_name = "PATH")]
+    connectors_config: Option<PathBuf>,
+    /// The `connectors` state directory, when not its default.
+    #[arg(long, value_name = "DIR")]
+    connectors_state_dir: Option<PathBuf>,
     /// The configured catalog adapter alias for Zendesk.
     #[arg(long, value_name = "ALIAS", default_value = "zendesk")]
     adapter: String,
@@ -176,32 +182,32 @@ fn run(cli: Cli) -> Result<ExitCode, String> {
 
 fn triage_tickets(composition: &Composition, arguments: TriageArgs) -> Result<ExitCode, String> {
     let approvals: BTreeSet<String> = arguments.approvals.into_iter().collect();
-    let (reads, now, mut tickets): (Box<dyn ZendeskReads>, i64, Vec<String>) =
-        match arguments.zendesk {
-            Source::Fixture => {
-                let root = arguments.fixtures.unwrap_or_else(fixture_root);
-                let tickets = fixture_tickets(&root)?;
-                (
-                    Box::new(fixture_reads(&root, &composition.connector.instance)?),
-                    triage::FIXTURE_NOW,
-                    tickets,
-                )
-            }
-            Source::Connectors => {
-                let connection = arguments
-                    .connection
-                    .ok_or("--zendesk connectors needs --connection")?;
-                (
-                    Box::new(ConnectorsCli::new(
-                        arguments.connectors_bin,
-                        arguments.adapter,
-                        connection,
-                    )),
-                    time::now(),
-                    Vec::new(),
-                )
-            }
-        };
+    let (reads, now, mut tickets): (Box<dyn ZendeskReads>, i64, Vec<String>) = match arguments
+        .zendesk
+    {
+        Source::Fixture => {
+            let root = arguments.fixtures.unwrap_or_else(fixture_root);
+            let tickets = fixture_tickets(&root)?;
+            (
+                Box::new(fixture_reads(&root, &composition.connector.instance)?),
+                triage::FIXTURE_NOW,
+                tickets,
+            )
+        }
+        Source::Connectors => {
+            let connection = arguments
+                .connection
+                .ok_or("--zendesk connectors needs --connection")?;
+            (
+                Box::new(
+                    ConnectorsCli::new(arguments.connectors_bin, arguments.adapter, connection)
+                        .with_paths(arguments.connectors_config, arguments.connectors_state_dir),
+                ),
+                time::now(),
+                Vec::new(),
+            )
+        }
+    };
     if !arguments.tickets.is_empty() {
         tickets = arguments.tickets;
     }

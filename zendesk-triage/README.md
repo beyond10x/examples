@@ -149,18 +149,23 @@ summary
 exit 0
 ```
 
-## Run it against a Zendesk sandbox
+## Run it against a Zendesk account
 
-Reads only; nothing is ever written to Zendesk. This path has not been run against a live account
-by this repository.
+Reads only; nothing is ever written to Zendesk. First run against a live account on 2026-10-05:
+three open tickets read through Connectors with an OAuth client-credentials token, each ending in
+an outcome (`awaiting approval (ticket.route)` or `needs_human (classification_rejected)`); the
+trail held ids, digests and categories, no ticket text.
 
-1. Build Connectors v0.26.0 and configure its catalog provider for Zendesk, with an adapter alias
-   (here `zendesk`) whose permitted operations include `ticket.show`, `ticket.comments`,
-   `user.show` and `organization.show`. The configuration is in Connectors'
-   `docs/catalog-zendesk.md` and `docs/local-catalog-provider.md`.
-2. Connect with a Zendesk API token: `connectors connections connect --adapter zendesk --profile
-   zendesk.basic --credential-prompt` (account `<email>/token`). The credential stays in
-   Connectors' keyring custody; this demo never sees it.
+1. Build Connectors from `main` (the `zendesk.oauth` client-credentials profile is not yet in a
+   release) and configure its catalog provider for Zendesk, with an adapter alias (here
+   `zendesk`) whose permitted operations include `ticket.show`, `ticket.comments`, `user.show`
+   and `organization.show`. The configuration is in Connectors' `docs/catalog-zendesk.md`
+   (*Authentication*) and `docs/local-catalog-provider.md`. Zendesk retires API tokens on
+   2027-04-30, so use the `zendesk.oauth` profile with a confidential OAuth client and the `read`
+   scope.
+2. Connect once: `connectors connections connect --adapter zendesk --profile zendesk.oauth
+   --credential-prompt` asks for the client's identifier and secret. They stay in Connectors'
+   keyring custody; this demo never sees them, and no token is ever refreshed by hand.
 3. Triage a ticket by id:
 
    ```console
@@ -168,8 +173,11 @@ by this repository.
      --adapter zendesk --connection <connection reference> --approve ticket.route
    ```
 
-   The run reads now from the system clock; `--now <RFC 3339>` fixes it. `--connectors-bin` names
-   the `connectors` executable when it is not on `PATH`.
+   A read refused `not_granted` because the connection's 60-second validation evidence lapsed is
+   retried once after `connections revalidate`. `--connectors-bin` names the `connectors`
+   executable when it is not on `PATH`; `--connectors-config` and `--connectors-state-dir` select
+   a configuration file and state directory other than the defaults. The run reads now from the
+   system clock; `--now <RFC 3339>` fixes it.
 
 ## The model
 
