@@ -1,0 +1,17 @@
+type: ess-scenario/1
+domain: examples.support_triage
+scenario: a-rejected-classification-goes-to-a-person
+summary: A ticket no classification rule matches is proposed as other, the review rejects it, and it goes to a person.
+timeline:
+- at: '2026-10-05T10:00:00Z'
+  command: examples.support_triage.TriageTicket
+  actor: examples.support_triage.Operator
+  input:
+    ticket: '1004'
+    approvals: [ticket.route]
+  outcome: needs-human
+  events:
+  - event: examples.support_triage.TicketHandedToHuman
+    payload:
+      ticket: '1004'
+      reason: classification_rejected

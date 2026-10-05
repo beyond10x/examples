@@ -1,0 +1,200 @@
+format: protocol/1
+
+protocol:
+  id: support.triage
+  revision: 1
+  description: >-
+    Triage one support ticket: read it at its current revision, know who raised it, have a proposed
+    classification reviewed, and route it under authority; escalate under authority when its
+    service-level target is breached, and hand it to a person when it cannot be triaged.
+
+artifacts:
+  ticket:
+    description: >-
+      the support request a case triages, referenced by its tracker id; its revision moves when the
+      requester's side of the request changes, not when routing fields or internal notes change. The
+      case stores no ticket text
+  requester:
+    description: the person who raised the ticket, with the organization they belong to
+
+evidence_kinds:
+  ticket_snapshot:
+    description: >-
+      the ticket read at one revision: its id, revision, a digest and its service-level status when
+      read, never its text; its result is breached or within_target. A read older than 15 minutes
+      no longer says whether the target is breached
+    max_age: 15m
+  requester_profile:
+    description: the requester looked up; its result is identified or unidentified
+  classification:
+    description: >-
+      a proposed category and priority for one ticket revision, each one the deployment declares
+  classification_review:
+    description: a review of the proposed classification; its result is approved or rejected
+  routing_record:
+    description: the record that the ticket was routed to a queue or owner, naming the target
+  escalation_record:
+    description: the record that an escalation was requested for the ticket, naming where it went
+
+claims:
+  ticket.current:
+    description: the ticket has been read at its current revision, recently enough to trust
+    true_when:
+      evidence:
+        kind: ticket_snapshot
+        subject: ticket
+  sla.breached:
+    description: the ticket's service-level target is breached, by a current read of the ticket
+    true_when:
+      evidence:
+        kind: ticket_snapshot
+        result: breached
+        subject: ticket
+  requester.known:
+    description: the requester is identified
+    true_when:
+      evidence:
+        kind: requester_profile
+        result: identified
+        subject: requester
+  classification.proposed:
+    description: a category and priority are proposed for the current ticket revision
+    true_when:
+      evidence:
+        kind: classification
+        subject: ticket
+  classification.reviewed:
+    description: the classification of the current ticket revision is reviewed and approved
+    true_when:
+      evidence:
+        kind: classification_review
+        result: approved
+        subject: ticket
+  ticket.classified:
+    description: >-
+      category and priority are decided on current evidence: the current ticket revision is read, a
+      classification is proposed for it and the review approved it
+    true_when:
+      all:
+        - claim: ticket.current
+        - claim: classification.proposed
+        - claim: classification.reviewed
+  ticket.routed:
+    description: the current ticket revision is routed to a queue or owner
+    true_when:
+      evidence:
+        kind: routing_record
+        subject: ticket
+  escalation.requested:
+    description: an escalation is requested for the current ticket revision
+    true_when:
+      evidence:
+        kind: escalation_record
+        subject: ticket
+  ticket.triaged:
+    description: >-
+      category, priority and route are decided on current evidence, for an identified requester
+    true_when:
+      all:
+        - claim: ticket.classified
+        - claim: requester.known
+        - claim: ticket.routed
+
+obligations:
+  escalate_sla_breach:
+    description: >-
+      a breached service-level target needs escalation; discharged once a current read shows the
+      target not breached, or once an escalation is requested
+    discharged_when:
+      any:
+        - claim: sla.breached
+          is: false
+        - claim: escalation.requested
+
+actions:
+  ticket.read:
+    description: read the ticket at its current revision
+    effect: read
+    may_produce:
+      - evidence: ticket_snapshot
+  requester.lookup:
+    description: look up the person who raised the ticket
+    effect: read
+    precondition:
+      claim: ticket.current
+    may_produce:
+      - evidence: requester_profile
+  ticket.classify:
+    description: propose a category and priority for the ticket; changes nothing outside the case
+    effect: none
+    precondition:
+      claim: ticket.current
+    may_produce:
+      - evidence: classification
+  classification.review:
+    description: approve or reject the proposed classification, under authority
+    effect: none
+    precondition:
+      claim: classification.proposed
+    requires:
+      - capability: classification.review
+    may_produce:
+      - evidence: classification_review
+  ticket.route:
+    description: >-
+      route the ticket to a queue or owner; only after the classification is decided (step order,
+      decision record 0084) and the requester is known, and only under authority
+    effect: write
+    precondition:
+      all:
+        - claim: ticket.classified
+        - claim: requester.known
+    requires:
+      - capability: ticket.route
+    may_produce:
+      - evidence: routing_record
+  reply.draft:
+    description: >-
+      draft a reply to the requester for a person to send; needs the classification decided and
+      authority
+    effect: write
+    precondition:
+      claim: ticket.classified
+    requires:
+      - capability: reply.draft
+  escalation.request:
+    description: request an escalation; needs a current read showing the target breached, and authority
+    effect: write
+    precondition:
+      claim: sla.breached
+    requires:
+      - capability: escalation.request
+    may_produce:
+      - evidence: escalation_record
+
+outcomes:
+  triaged:
+    description: >-
+      the ticket is triaged: category, priority and route decided on current evidence, with its
+      service-level target not breached
+    requires:
+      all:
+        - claim: ticket.triaged
+        - claim: sla.breached
+          is: false
+  escalated:
+    description: the ticket's service-level target is breached and an escalation is requested
+    requires:
+      all:
+        - claim: sla.breached
+        - claim: escalation.requested
+  needs_human:
+    description: >-
+      the ticket goes to a person: the review rejected the proposed classification, or the
+      requester could not be identified
+    requires:
+      any:
+        - claim: classification.reviewed
+          is: false
+        - claim: requester.known
+          is: false

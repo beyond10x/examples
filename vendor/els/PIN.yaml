@@ -1,0 +1,8 @@
+format: examples-vendored-protocol/1
+protocol: support-triage@1
+file: protocols/support-triage/1.yaml
+source:
+  repository: https://github.com/beyond10x/els
+  commit: 59fd19f639a6427533cd63c5ca53eaaf040d70c7
+  path: protocols/support-triage/1.yaml
+sha256: d970d928e6299aa400566b0c4e2fb928479c42f7c96a82e5b78feab41277c67a

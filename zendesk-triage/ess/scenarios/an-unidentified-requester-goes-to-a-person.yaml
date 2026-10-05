@@ -1,0 +1,17 @@
+type: ess-scenario/1
+domain: examples.support_triage
+scenario: an-unidentified-requester-goes-to-a-person
+summary: A ticket whose requester is suspended goes to a person, and routing stays blocked.
+timeline:
+- at: '2026-10-05T10:00:00Z'
+  command: examples.support_triage.TriageTicket
+  actor: examples.support_triage.Operator
+  input:
+    ticket: '1003'
+    approvals: [ticket.route]
+  outcome: needs-human
+  events:
+  - event: examples.support_triage.TicketHandedToHuman
+    payload:
+      ticket: '1003'
+      reason: requester_unidentified

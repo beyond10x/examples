@@ -1,0 +1,12 @@
+format: ess-inputs/2
+requires: ess 0.52
+specification:
+  - system.yaml
+  - domains/triage.yaml
+scenarios:
+  - scenarios/a-ticket-within-target-is-triaged-and-routed.yaml
+  - scenarios/routing-waits-for-approval.yaml
+  - scenarios/a-breached-ticket-is-escalated.yaml
+  - scenarios/an-unidentified-requester-goes-to-a-person.yaml
+  - scenarios/a-rejected-classification-goes-to-a-person.yaml
+  - scenarios/an-unknown-ticket-is-refused.yaml

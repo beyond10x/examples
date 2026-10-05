@@ -1,0 +1,21 @@
+{
+  "format": "connectors-catalog-operations/1",
+  "provider": "zendesk",
+  "operations": [
+    {"id": "tickets.incremental", "operation_id": "IncrementalTicketExportCursor", "effect": "read",
+     "description": "Export the tickets changed since start_time, one page per call; the first call sends start_time, each later call sends the previous page's after_cursor as cursor, and the walk ends on a page with end_of_stream true"},
+    {"id": "ticket.show", "operation_id": "ShowTicket", "effect": "read",
+     "description": "Read one ticket by ticket_id, without its comment thread"},
+    {"id": "ticket.comments", "operation_id": "ListTicketComments", "effect": "read",
+     "description": "List one ticket's comments by cursor, one page per call; the walk sends meta.after_cursor as page[after] and ends on a page with meta.has_more false",
+     "withhold": ["per_page", "sort_order"]},
+    {"id": "users.incremental", "operation_id": "IncrementalUserExportCursor", "effect": "read",
+     "description": "Export the users changed since start_time, one page per call; the first call sends start_time, each later call sends the previous page's after_cursor as cursor, and the walk ends on a page with end_of_stream true"},
+    {"id": "user.show", "operation_id": "ShowUser", "effect": "read",
+     "description": "Read one user by user_id"},
+    {"id": "organizations.incremental", "operation_id": "IncrementalOrganizationExport", "effect": "read",
+     "description": "Export the organizations changed since start_time, one page per call; each later call sends the previous page's end_time as start_time, and the walk ends on a page with end_of_stream true"},
+    {"id": "organization.show", "operation_id": "ShowOrganization", "effect": "read",
+     "description": "Read one organization by organization_id"}
+  ]
+}

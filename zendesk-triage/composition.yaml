@@ -1,0 +1,41 @@
+format: examples-triage-composition/1
+protocol: support-triage@1
+connector:
+  provider: zendesk
+  instance: zendesk-support
+bindings:
+  ticket.read:
+    kind: connector_read
+    operations: [ticket.show, ticket.comments]
+  requester.lookup:
+    kind: connector_read
+    operations: [user.show, organization.show]
+  ticket.classify:
+    kind: local
+    service: classifier
+  classification.review:
+    kind: local
+    service: reviewer
+  ticket.route:
+    kind: proposed_effect
+  reply.draft:
+    kind: proposed_effect
+  escalation.request:
+    kind: proposed_effect
+policy:
+  classification.review: allow
+  escalation.request: allow
+  ticket.route: require_approval
+  reply.draft: require_approval
+categories: [billing, technical, account, other]
+priorities: [low, normal, high, urgent]
+queues:
+  billing: queue-billing
+  technical: queue-technical
+  account: queue-accounts
+escalation_target: support-oncall
+first_reply_target_minutes:
+  urgent: 60
+  high: 240
+  normal: 480
+  low: 1440

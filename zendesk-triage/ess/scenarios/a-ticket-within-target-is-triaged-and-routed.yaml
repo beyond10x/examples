@@ -1,0 +1,19 @@
+type: ess-scenario/1
+domain: examples.support_triage
+scenario: a-ticket-within-target-is-triaged-and-routed
+summary: A billing ticket within its first-reply target is classified, the review approves, and with routing approved it is routed to the billing queue.
+timeline:
+- at: '2026-10-05T10:00:00Z'
+  command: examples.support_triage.TriageTicket
+  actor: examples.support_triage.Operator
+  input:
+    ticket: '1001'
+    approvals: [ticket.route]
+  outcome: triaged
+  events:
+  - event: examples.support_triage.TicketTriaged
+    payload:
+      ticket: '1001'
+      category: billing
+      priority: normal
+      route: queue-billing

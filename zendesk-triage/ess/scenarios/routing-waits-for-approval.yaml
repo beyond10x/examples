@@ -1,0 +1,17 @@
+type: ess-scenario/1
+domain: examples.support_triage
+scenario: routing-waits-for-approval
+summary: The same ticket without the routing approval stops before routing and writes nothing.
+timeline:
+- at: '2026-10-05T10:00:00Z'
+  command: examples.support_triage.TriageTicket
+  actor: examples.support_triage.Operator
+  input:
+    ticket: '1001'
+    approvals: []
+  outcome: awaiting-approval
+  events:
+  - event: examples.support_triage.ApprovalAwaited
+    payload:
+      ticket: '1001'
+      actions: [ticket.route]

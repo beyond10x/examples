@@ -1,0 +1,191 @@
+domain: examples.support_triage
+
+summary: >-
+  A triage of one support ticket and what it ended with. The triage holds ids, digests, the
+  classification and the proposed effects; it never holds ticket text or requester details.
+
+types:
+  - name: examples.support_triage.TriageId
+    kind: newtype
+    of: Uuid
+
+  # The tracker's id of the ticket, as text.
+  - name: examples.support_triage.TicketRef
+    kind: newtype
+    of: String
+
+  - name: examples.support_triage.Outcome
+    kind: enum
+    # The protocol's three outcomes, and a run that stopped at a capability waiting for a person.
+    variants: [Triaged, Escalated, NeedsHuman, AwaitingApproval]
+
+  # A write the run would make in the tracker. It is recorded and shown, and never sent.
+  - name: examples.support_triage.ProposedEffect
+    kind: struct
+    fields:
+      - name: action
+        type: String
+      - name: target
+        type: String
+
+entities:
+  - name: examples.support_triage.Triage
+    identity:
+      name: triage_id
+      type: examples.support_triage.TriageId
+    fields:
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      - name: protocol
+        type: String
+      - name: outcome
+        type: examples.support_triage.Outcome
+      # The protocol actions the run performed, in order.
+      - name: actions
+        type: List<String>
+      - name: proposed_effects
+        type: List<examples.support_triage.ProposedEffect>
+    lifecycle:
+      initial: Ended
+      states: [Ended]
+      terminal: [Ended]
+
+actors:
+  # Whoever starts the triage and grants the approvals the policy asks for.
+  - name: examples.support_triage.Operator
+    may:
+      - examples.support_triage.TriageTicket
+
+errors:
+  - name: examples.support_triage.TicketNotFound
+    summary: The tracker has no ticket with this id, so no triage was recorded.
+    fields:
+      - name: ticket
+        type: examples.support_triage.TicketRef
+
+commands:
+  - name: examples.support_triage.TriageTicket
+    input:
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      # The capabilities the operator approves for this run, beyond what the policy allows.
+      - name: approvals
+        type: List<String>
+    outcomes:
+      - name: triaged
+        creates: examples.support_triage.Triage
+        instance: triage_id
+        emits:
+          - examples.support_triage.TicketTriaged
+        payload:
+          examples.support_triage.TicketTriaged:
+            ticket: input.ticket
+        sets:
+          ticket: input.ticket
+          outcome: Triaged
+        summary: >-
+          Read at its current revision, requester identified, classification proposed and approved,
+          routed under authority; its first-reply target is not breached.
+
+      - name: escalated
+        external: a current read of the ticket shows its first-reply target breached
+        creates: examples.support_triage.Triage
+        instance: triage_id
+        emits:
+          - examples.support_triage.TicketEscalated
+        payload:
+          examples.support_triage.TicketEscalated:
+            ticket: input.ticket
+        sets:
+          ticket: input.ticket
+          outcome: Escalated
+        summary: A current read shows the first-reply target breached, and an escalation is requested.
+
+      - name: needs-human
+        external: the requester is not identified, or the review rejects the proposed classification
+        creates: examples.support_triage.Triage
+        instance: triage_id
+        emits:
+          - examples.support_triage.TicketHandedToHuman
+        payload:
+          examples.support_triage.TicketHandedToHuman:
+            ticket: input.ticket
+        sets:
+          ticket: input.ticket
+          outcome: NeedsHuman
+        summary: The requester could not be identified, or the review rejected the classification.
+
+      - name: awaiting-approval
+        external: the next step needs a capability the policy holds for a person, and the operator did not approve it
+        creates: examples.support_triage.Triage
+        instance: triage_id
+        emits:
+          - examples.support_triage.ApprovalAwaited
+        payload:
+          examples.support_triage.ApprovalAwaited:
+            ticket: input.ticket
+        sets:
+          ticket: input.ticket
+          outcome: AwaitingApproval
+        summary: >-
+          The next step needs a capability the policy holds for a person and the operator did not
+          approve; nothing was written.
+
+      - name: unknown-ticket
+        external: the tracker answers that it has no ticket with this id
+        error: examples.support_triage.TicketNotFound
+        summary: The ticket read was refused as not found.
+
+events:
+  - name: examples.support_triage.TicketTriaged
+    fields:
+      - name: triage_id
+        type: examples.support_triage.TriageId
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      - name: category
+        type: String
+      - name: priority
+        type: String
+      - name: route
+        type: String
+
+  - name: examples.support_triage.TicketEscalated
+    fields:
+      - name: triage_id
+        type: examples.support_triage.TriageId
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      - name: escalation
+        type: String
+
+  - name: examples.support_triage.TicketHandedToHuman
+    fields:
+      - name: triage_id
+        type: examples.support_triage.TriageId
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      # `requester_unidentified` or `classification_rejected`.
+      - name: reason
+        type: String
+
+  - name: examples.support_triage.ApprovalAwaited
+    fields:
+      - name: triage_id
+        type: examples.support_triage.TriageId
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      - name: actions
+        type: List<String>
+
+views:
+  - name: examples.support_triage.TriageByTicket
+    source: examples.support_triage.Triage
+    consistency: read_your_writes
+    fields:
+      - name: triage_id
+        type: examples.support_triage.TriageId
+      - name: ticket
+        type: examples.support_triage.TicketRef
+      - name: outcome
+        type: examples.support_triage.Outcome

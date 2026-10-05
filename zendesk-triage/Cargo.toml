@@ -1,0 +1,32 @@
+[package]
+name = "zendesk-triage"
+description = "Triage support tickets locally: Zendesk reads through Connectors, Loom as executor, the governor checking each step against support.triage/1 with Canon."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lib]
+name = "zendesk_triage"
+
+[[bin]]
+name = "zendesk-triage"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = "0.1"
+b10x-canon = { git = "https://github.com/beyond10x/canon", branch = "main" }
+b10x-canon-engineering = { git = "https://github.com/beyond10x/els", rev = "59fd19f639a6427533cd63c5ca53eaaf040d70c7" }
+b10x-els = { git = "https://github.com/beyond10x/els", rev = "ac7dd03" }
+b10x-loom-sdk = { git = "https://github.com/beyond10x/loom", rev = "c4e7252e68e86d83182e7fe9615f931d30c3d96f" }
+clap = { version = "4.5", features = ["derive"] }
+connectors-catalog = { git = "https://github.com/beyond10x/connectors", tag = "v0.26.0" }
+connectors-catalog-provider = { git = "https://github.com/beyond10x/connectors", tag = "v0.26.0", default-features = false }
+connectors-core = { git = "https://github.com/beyond10x/connectors", tag = "v0.26.0" }
+connectors-sdk = { git = "https://github.com/beyond10x/connectors", tag = "v0.26.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml_ng = "0.10"
+sha2 = "0.10"
+tokio = { version = "1", features = ["rt"] }

@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "id": 10041,
+      "type": "Comment",
+      "author_id": 604,
+      "public": true,
+      "body": "Hello, I have a question. Please get back to me.",
+      "created_at": "2026-10-05T09:50:00Z"
+    }
+  ],
+  "meta": {
+    "has_more": false,
+    "after_cursor": null,
+    "before_cursor": null
+  },
+  "links": {
+    "next": null,
+    "prev": null
+  }
+}

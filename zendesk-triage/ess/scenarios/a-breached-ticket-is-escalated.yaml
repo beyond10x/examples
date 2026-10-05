@@ -1,0 +1,17 @@
+type: ess-scenario/1
+domain: examples.support_triage
+scenario: a-breached-ticket-is-escalated
+summary: An urgent ticket with no reply after its first-reply target is escalated, under the policy that allows escalation.
+timeline:
+- at: '2026-10-05T10:00:00Z'
+  command: examples.support_triage.TriageTicket
+  actor: examples.support_triage.Operator
+  input:
+    ticket: '1002'
+    approvals: []
+  outcome: escalated
+  events:
+  - event: examples.support_triage.TicketEscalated
+    payload:
+      ticket: '1002'
+      escalation: support-oncall

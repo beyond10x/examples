@@ -1,0 +1,13 @@
+format: examples-vendored-connectors/1
+provider: zendesk
+source:
+  repository: https://github.com/beyond10x/connectors
+  tag: v0.26.0
+  commit: b59460ddbe1d7d021e240d3a3e39afd0e6379986
+files:
+  - file: zendesk.bundle.json
+    path: adapters/catalog/generated/bundles/zendesk.bundle.json
+    sha256: 799e268a8f57dece50fc2a54d3799f6c2635515b73f3d16799878192ac21015b
+  - file: operations.json
+    path: adapters/catalog/providers/zendesk/operations.json
+    sha256: d36567da7fbf5a6a576f1c838961a10ce522bcde48d0d11f05a6125c1b3a5f96
