@@ -245,11 +245,16 @@ impl AuthenticatedHttp for FixtureHttp {
 }
 
 /// Reads through the `connectors` command line: `operations describe` for the operation's schema
-/// and revision, then `operations invoke`. Not run against a live account by this repository.
+/// and revision, then `operations invoke`. A read refused `not_granted`, because the connection's
+/// validation evidence (60 seconds by default) lapsed, is retried once after
+/// `connections revalidate`. Run against a live account on
+/// 2026-10-05 (connectors 0.28.0 with the `zendesk.oauth` client-credentials profile).
 pub struct ConnectorsCli {
     program: PathBuf,
     adapter: String,
     connection: String,
+    /// `--config` and `--state-dir` for every command, when given.
+    globals: Vec<String>,
 }
 
 impl ConnectorsCli {
@@ -260,39 +265,136 @@ impl ConnectorsCli {
             program,
             adapter,
             connection,
+            globals: Vec::new(),
         }
     }
 
+    /// Selects the `connectors` configuration file and state directory instead of the defaults.
+    #[must_use]
+    pub fn with_paths(mut self, config: Option<PathBuf>, state_dir: Option<PathBuf>) -> Self {
+        for (flag, path) in [("--config", config), ("--state-dir", state_dir)] {
+            if let Some(path) = path {
+                self.globals.push(flag.to_owned());
+                self.globals.push(path.display().to_string());
+            }
+        }
+        self
+    }
+
+    /// Renews the connection's validation evidence: a read is refused `not_granted` once it lapsed.
+    fn revalidate(&self) -> Result<(), ReadError> {
+        let listed = self.run(&["connections", "list", "--adapter", &self.adapter])?;
+        let revision = find(&listed, "connections")
+            .and_then(Value::as_array)
+            .and_then(|connections| {
+                connections
+                    .iter()
+                    .find(|entry| entry["connection"] == self.connection.as_str())
+            })
+            .and_then(|entry| entry["revision"].as_str())
+            .ok_or_else(|| ReadError::Failed(format!("no connection `{}`", self.connection)))?
+            .to_owned();
+        self.run(&[
+            "connections",
+            "revalidate",
+            "--adapter",
+            &self.adapter,
+            "--connection",
+            &self.connection,
+            "--expected-revision",
+            &revision,
+        ])
+        .map(|_| ())
+    }
+
     fn run(&self, arguments: &[&str]) -> Result<Value, ReadError> {
+        self.command(arguments).map_err(ReadError::from)
+    }
+
+    /// One command; a refusal keeps its failure code, so a caller can act on it.
+    fn command(&self, arguments: &[&str]) -> Result<Value, Refusal> {
         let output = Command::new(&self.program)
             .args(["--output", "json"])
+            .args(&self.globals)
             .args(arguments)
             .output()
-            .map_err(|error| ReadError::Failed(format!("{}: {error}", self.program.display())))?;
-        let text = String::from_utf8_lossy(&output.stdout);
+            .map_err(|error| {
+                Refusal::Error(ReadError::Failed(format!(
+                    "{}: {error}",
+                    self.program.display()
+                )))
+            })?;
+        // A refusal is printed on stderr, with stdout empty.
+        let printed = if output.stdout.trim_ascii().is_empty() {
+            &output.stderr
+        } else {
+            &output.stdout
+        };
+        let text = String::from_utf8_lossy(printed);
         let value: Value = serde_json::from_str(text.trim()).map_err(|_| {
-            ReadError::Failed(format!(
+            Refusal::Error(ReadError::Failed(format!(
                 "connectors answered no JSON: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            ))
+                text.trim()
+            )))
         })?;
         if !output.status.success() {
-            let code = find(&value, "code").and_then(Value::as_str).unwrap_or("");
-            return Err(if code == "not_found" {
-                ReadError::NotFound
-            } else {
-                ReadError::Failed(format!("connectors refused: {value}"))
-            });
+            return Err(Refusal::Code(
+                failure_code(&value).unwrap_or_default().to_owned(),
+                value,
+            ));
         }
         Ok(value)
     }
 }
 
+/// A refused `connectors` command.
+enum Refusal {
+    /// Refused with this failure code; the whole answer.
+    Code(String, Value),
+    /// Not run, or answered no JSON.
+    Error(ReadError),
+}
+
+impl From<Refusal> for ReadError {
+    fn from(refusal: Refusal) -> Self {
+        match refusal {
+            Refusal::Code(code, _) if code == "not_found" => ReadError::NotFound,
+            Refusal::Code(_, value) => ReadError::Failed(format!("connectors refused: {value}")),
+            Refusal::Error(error) => error,
+        }
+    }
+}
+
 /// The first member named `name` at the top of `value` or under `data` or `result`.
 fn find<'v>(value: &'v Value, name: &str) -> Option<&'v Value> {
+    value.get(name).or_else(|| {
+        ["data", "result"]
+            .iter()
+            .find_map(|wrapper| value.get(*wrapper).and_then(|inner| inner.get(name)))
+    })
+}
+
+/// The failure code of a refused command: `error.data.code` (`{"ok": false, "error":
+/// {"code": "failure", "data": {"code": "not_found", …}}}`), else the first `code` found.
+fn failure_code(value: &Value) -> Option<&str> {
     value
-        .get(name)
-        .or_else(|| value.get("data").and_then(|data| data.get(name)))
+        .pointer("/error/data/code")
+        .or_else(|| find(value, "code"))
+        .and_then(Value::as_str)
+}
+
+/// The provider answer of `operations invoke`: `{"ok": true, "result": {"adapter", "operation",
+/// "revision", "result": "<answer as JSON text>"}}`. A bare object answer is taken as it is.
+fn invoked_answer(invoked: &Value) -> Result<Value, ReadError> {
+    let payload = invoked
+        .pointer("/result/result")
+        .or_else(|| find(invoked, "result"))
+        .ok_or_else(|| ReadError::Failed("invoke gave no `result`".to_owned()))?;
+    match payload {
+        Value::String(text) => serde_json::from_str(text)
+            .map_err(|_| ReadError::Failed("invoke result is not JSON".to_owned())),
+        answer => Ok(answer.clone()),
+    }
 }
 
 impl ZendeskReads for ConnectorsCli {
@@ -312,7 +414,8 @@ impl ZendeskReads for ConnectorsCli {
                 .ok_or_else(|| ReadError::Failed(format!("describe gave no `{name}`")))
         };
         let (schema, revision) = (text("schema")?, text("revision")?);
-        let invoked = self.run(&[
+        let input = input.to_string();
+        let invoke = [
             "operations",
             "invoke",
             "--adapter",
@@ -326,14 +429,18 @@ impl ZendeskReads for ConnectorsCli {
             "--revision",
             &revision,
             "--input-json",
-            &input.to_string(),
-        ])?;
-        let result = match find(&invoked, "result") {
-            Some(Value::String(payload)) => serde_json::from_str(payload)
-                .map_err(|_| ReadError::Failed("invoke result is not JSON".to_owned()))?,
-            Some(payload) => payload.clone(),
-            None => return Err(ReadError::Failed("invoke gave no `result`".to_owned())),
+            &input,
+        ];
+        // Evidence that lapsed is renewed once and the read retried, as Connectors documents
+        // for a scheduled caller.
+        let invoked = match self.command(&invoke) {
+            Err(Refusal::Code(code, _)) if code == "not_granted" => {
+                self.revalidate()?;
+                self.run(&invoke)?
+            }
+            answer => answer.map_err(ReadError::from)?,
         };
+        let result = invoked_answer(&invoked)?;
         Ok(Read {
             status: result["status"]
                 .as_u64()
@@ -379,4 +486,36 @@ pub fn fixture_reads(root: &Path, instance: &str) -> Result<CatalogReads<Fixture
 /// A read input of one integer id.
 pub fn id_input(name: &str, id: u64) -> Value {
     json!({ name: id })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The shapes `connectors --output json` printed on 2026-10-05 (connectors 0.28.0).
+
+    #[test]
+    fn describe_answers_schema_and_revision_under_result() {
+        let described = json!({"ok": true, "result": {"adapter": "zendesk",
+            "operation": "ticket.show", "revision": "r1", "schema": "s1", "source": "cache",
+            "stale": true}});
+        assert_eq!(find(&described, "schema"), Some(&json!("s1")));
+        assert_eq!(find(&described, "revision"), Some(&json!("r1")));
+    }
+
+    #[test]
+    fn invoke_answer_is_the_json_text_under_result_result() {
+        let answer = json!({"status": 200, "body": {"ticket": {"id": 7}},
+            "provenance": {"source_revision": "sha", "resource": "/api/v2/tickets/{ticket_id}"}});
+        let invoked = json!({"ok": true, "result": {"adapter": "zendesk",
+            "operation": "ticket.show", "revision": "r1", "result": answer.to_string()}});
+        assert_eq!(invoked_answer(&invoked), Ok(answer));
+    }
+
+    #[test]
+    fn a_refusal_code_is_read_from_error_data() {
+        let refused = json!({"ok": false, "error": {"code": "failure",
+            "data": {"code": "not_found", "kind": "provider"}}});
+        assert_eq!(failure_code(&refused), Some("not_found"));
+    }
 }
