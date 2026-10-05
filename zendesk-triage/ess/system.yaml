@@ -1,0 +1,10 @@
+format: ess/1
+system: examples
+version: v1
+
+summary: >-
+  One support ticket triaged on one machine: read through Connectors, run by Loom, each step checked
+  by the governor against the support.triage/1 protocol with Canon. Writes are proposed, never sent.
+
+domains:
+  - examples.support_triage

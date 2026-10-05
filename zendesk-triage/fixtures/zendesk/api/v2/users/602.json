@@ -1,0 +1,14 @@
+{
+  "user": {
+    "id": 602,
+    "name": "Requester B",
+    "email": "requester.b@example.com",
+    "role": "end-user",
+    "organization_id": 502,
+    "active": true,
+    "suspended": false,
+    "verified": true,
+    "created_at": "2026-01-05T08:00:00Z",
+    "updated_at": "2026-09-02T08:00:00Z"
+  }
+}

@@ -1,0 +1,15 @@
+type: ess-scenario/1
+domain: examples.support_triage
+scenario: an-unknown-ticket-is-refused
+summary: A ticket id the tracker does not hold is refused as not found, and no triage is recorded.
+timeline:
+- at: '2026-10-05T10:00:00Z'
+  command: examples.support_triage.TriageTicket
+  actor: examples.support_triage.Operator
+  input:
+    ticket: '9999'
+    approvals: []
+  outcome: unknown-ticket
+  error:
+    name: examples.support_triage.TicketNotFound
+  no_events: [examples.support_triage.TicketTriaged, examples.support_triage.TicketEscalated, examples.support_triage.TicketHandedToHuman, examples.support_triage.ApprovalAwaited]

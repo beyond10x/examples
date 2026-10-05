@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "id": 10031,
+      "type": "Comment",
+      "author_id": 603,
+      "public": true,
+      "body": "The reset link worked but the new password is not accepted.",
+      "created_at": "2026-10-05T09:30:00Z"
+    }
+  ],
+  "meta": {
+    "has_more": false,
+    "after_cursor": null,
+    "before_cursor": null
+  },
+  "links": {
+    "next": null,
+    "prev": null
+  }
+}
