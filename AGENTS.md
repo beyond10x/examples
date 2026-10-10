@@ -9,6 +9,13 @@ One demo, [`zendesk-triage/`](zendesk-triage/README.md): a local support-ticket 
 go through Connectors, Loom runs the triage, and the governor checks each step against the ELS
 protocol `support.triage/1` with Canon. Writes are recorded as proposed effects and never sent.
 
+## Serves
+
+This repository advances these objectives from `atlas/ROADMAP.md`:
+
+- O1: the triage reads only through Connectors, the governor checks every step against `support.triage/1`, and writes stay proposed effects.
+- O2: the triage's domain is an ESS specification and its protocol is data, with an ESS conformance report as the evidence for each run.
+
 ## Commands
 
 | Command | What it does |
