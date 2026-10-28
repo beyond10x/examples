@@ -27,7 +27,7 @@ This repository advances these objectives from `atlas/ROADMAP.md`:
 | `task demo` | The demo run the README shows. |
 
 The Taskfile sets `CARGO_TARGET_DIR` to `$HOME/.cache/b10x-target/examples` unless one is set; give
-each worktree its own before trusting a gate run there. Requires go-task and `ess` 0.52.
+each worktree its own before trusting a gate run there. Requires go-task and `ess` 0.72.
 
 ## Pins
 
@@ -43,7 +43,7 @@ lock fixes it.
 | `support.triage/1`, vendored | ELS `59fd19f639a6427533cd63c5ca53eaaf040d70c7`, SHA-256 `d970d928…c67a` | `vendor/els/PIN.yaml` |
 | Connectors (`connectors-catalog-provider`, `-catalog`, `-core`, `-sdk`) | tag `v0.26.0` (`b59460ddbe1d7d021e240d3a3e39afd0e6379986`) | `zendesk-triage/Cargo.toml` |
 | Zendesk bundle and selection set, vendored | Connectors `v0.26.0` | `zendesk-triage/connectors/PIN.yaml` |
-| ess CLI | 0.52.0 | `.github/workflows/check.yml`, `ess-inputs.yaml` |
+| ess CLI | 0.72.0 | `.github/workflows/check.yml`, `ess-inputs.yaml` |
 
 Governor and Commission are not separate dependencies. Atlas ADR 0090 (accepted 2026-10-05) moved
 both into Loom: `beyond10x/governor` main `81fcc1e` and `beyond10x/commission` main `e61e4f0` are
