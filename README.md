@@ -13,7 +13,7 @@ command that runs it.
 ## Run
 
 Needs Rust (stable), [go-task](https://taskfile.dev) and [`ess`](https://github.com/beyond10x/ess)
-0.52 for the gate.
+0.72 for the gate.
 
 ```console
 task demo     # the zendesk-triage demo on its fixtures
